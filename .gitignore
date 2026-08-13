@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# 환경
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+.venv
+
+# uv
+.python-version
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# 모델 가중치 / 데이터 (용량이 크므로 Git LFS 또는 제외)
+*.pt
+*.pth
+*.ckpt
+*.bin
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+
+# 로그
+*.log
+logs/
+wandb/
+mlruns/
