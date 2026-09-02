@@ -1,9 +1,11 @@
--- Food Master MVP
+-- Ingredient Master MVP
 -- PostgreSQL 14+
 --
--- `food` stores stable food identity only. A source row's nutrients, origin,
--- production date, and raw/cooked state remain observations and are not copied
--- into this table.
+-- The physical `food_master.food` name is retained for MVP compatibility, but
+-- it stores stable Ingredient identity: the material axis of the fresh-food
+-- domain. Productized foods and cooking intents are separate product/service
+-- concerns. A source row's nutrients, origin, production date, and raw/cooked
+-- state remain observations and are not copied into this table.
 
 CREATE SCHEMA IF NOT EXISTS food_master;
 
@@ -44,10 +46,10 @@ CREATE INDEX IF NOT EXISTS food_canonical_name_idx
     ON food_master.food (canonical_name);
 
 COMMENT ON TABLE food_master.food IS
-    'MVP Food identity master derived from an official food-source hierarchy.';
+    'MVP Ingredient identity master derived from an official food-source hierarchy.';
 COMMENT ON COLUMN food_master.food.basis_level IS
-    'Original hierarchy level selected as the Food identity: REPRESENTATIVE, MIDDLE, or SMALL.';
+    'Original hierarchy level selected as the Ingredient identity: REPRESENTATIVE, MIDDLE, or SMALL.';
 COMMENT ON COLUMN food_master.food.basis_source_id IS
-    'Dataset source used to create this Food; it is not an individual observation row.';
+    'Dataset source used to create this Ingredient; it is not an individual observation row.';
 COMMENT ON COLUMN food_master.food.source_identity_key IS
     'Stable resolved source branch key. It distinguishes approved code collisions and normalized aliases.';
