@@ -10,8 +10,8 @@ Ingredient Master는 신선식품 도메인의 **재료(Ingredient) 축**만 관
 재료 또는 중간 재료 단위**를 저장한다. 양념육·훈제육·밀키트·완제품 같은 푸드 상품과 메뉴·상황 같은
 요리 의도는 이 Master의 identity가 아니다.
 
-현재 MVP의 물리 저장소 이름은 호환성을 위해 `food_master.food`와 `food_id`를 유지한다. 이 문서에서
-말하는 Ingredient는 해당 물리 레코드가 표현하는 논리적 대상이다.
+Ingredient Master의 물리 저장소는 `ingredient_master.ingredient`이며, 기본 식별자는
+`ingredient_id`다.
 
 ```text
 원천 식품 데이터
@@ -21,7 +21,7 @@ Ingredient Master는 신선식품 도메인의 **재료(Ingredient) 축**만 관
    └─ 필요한 하위 식품만 추가
    │
    ▼
-food_source 1행 + ingredient 레코드 여러 행
+ingredient_source 1행 + ingredient 레코드 여러 행
 ```
 
 ## Ingredient로 만드는 기준
@@ -40,7 +40,7 @@ food_source 1행 + ingredient 레코드 여러 행
 ```
 
 감자의 품종, 생것·삶은것 같은 조리 상태, 원산지, 생산월, 영양성분은 감자라는 identity를 바꾸지
-않는다. 이런 값은 `food`에 넣지 않으며, 나중에 원천 관측 데이터로 연결한다.
+않는다. 이런 값은 `ingredient`에 넣지 않으며, 나중에 원천 관측 데이터로 연결한다.
 
 ### 2. 하위 분류는 실제로 다른 식품일 때만 추가한다
 

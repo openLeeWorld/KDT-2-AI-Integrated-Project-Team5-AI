@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scripts.food_master.load_food_master import (
+from scripts.ingredient_master.load_ingredient_master import (
     IdentityOverride,
     PromotionRule,
     build_plan,
@@ -34,21 +34,23 @@ def row(
     }
 
 
-def test_representative_is_the_default_food():
+def test_representative_is_the_default_ingredient():
     plan = build_plan([row(), row(middle_code="0619805", middle_name="애호박")], [], [])
 
-    assert [(food.basis_level, food.canonical_name) for food in plan.foods] == [("REPRESENTATIVE", "호박")]
+    assert [(ingredient.basis_level, ingredient.canonical_name) for ingredient in plan.ingredients] == [
+        ("REPRESENTATIVE", "호박")
+    ]
 
 
-def test_r2_promotion_creates_a_child_food():
+def test_promoted_middle_creates_a_child_ingredient():
     plan = build_plan(
         [row(), row(middle_code="0619805", middle_name="애호박")],
         [],
         [
             PromotionRule(
                 large_category_code="06",
-                representative_food_code="06198",
-                representative_food_name="호박",
+                representative_source_code="06198",
+                representative_source_name="호박",
                 resolved_representative_code="06198",
                 resolved_representative_name="호박",
                 middle_category_code="0619805",
@@ -59,13 +61,13 @@ def test_r2_promotion_creates_a_child_food():
         ],
     )
 
-    assert [(food.canonical_name, food.parent_key) for food in plan.foods] == [
+    assert [(ingredient.canonical_name, ingredient.parent_key) for ingredient in plan.ingredients] == [
         ("호박", None),
         ("애호박", ("REPRESENTATIVE", "K-FIND:06:06198:호박")),
     ]
 
 
-def test_r3_promotion_uses_a_composite_name():
+def test_promoted_middle_uses_a_composite_name():
     records = [
         row(
             category_code="02",
@@ -82,8 +84,8 @@ def test_r3_promotion_uses_a_composite_name():
         [
             PromotionRule(
                 large_category_code="02",
-                representative_food_code="02014",
-                representative_food_name="전분",
+                representative_source_code="02014",
+                representative_source_name="전분",
                 resolved_representative_code="02014",
                 resolved_representative_name="전분",
                 middle_category_code="0201402",
@@ -94,12 +96,12 @@ def test_r3_promotion_uses_a_composite_name():
         ],
     )
 
-    child = next(food for food in plan.foods if food.basis_level == "MIDDLE")
+    child = next(ingredient for ingredient in plan.ingredients if ingredient.basis_level == "MIDDLE")
     assert child.canonical_name == "고구마 전분"
     assert child.parent_key == ("REPRESENTATIVE", "K-FIND:02:02014:전분")
 
 
-def test_normalized_merge_emits_one_food():
+def test_normalized_merge_emits_one_ingredient():
     records = [
         row(
             category_code="01",
@@ -136,12 +138,12 @@ def test_normalized_merge_emits_one_food():
     ]
     plan = build_plan(records, overrides, [])
 
-    assert len(plan.foods) == 1
-    assert plan.foods[0].canonical_name == "멥쌀 국수"
+    assert len(plan.ingredients) == 1
+    assert plan.ingredients[0].canonical_name == "멥쌀 국수"
     assert len(plan.normalized_merges) == 1
 
 
-def test_internal_branch_override_keeps_colliding_code_as_two_foods():
+def test_internal_branch_override_keeps_colliding_code_as_two_ingredients():
     records = [
         row(
             representative_code="06101",
@@ -178,7 +180,7 @@ def test_internal_branch_override_keeps_colliding_code_as_two_foods():
     ]
     plan = build_plan(records, overrides, [])
 
-    assert {food.basis_code for food in plan.foods} == {"06101-01", "06101-02"}
+    assert {ingredient.basis_code for ingredient in plan.ingredients} == {"06101-01", "06101-02"}
     assert plan.blocked_codes == []
 
 
@@ -192,13 +194,13 @@ def test_unresolved_collision_is_blocked():
         [],
     )
 
-    assert plan.foods == []
+    assert plan.ingredients == []
     assert plan.blocked_codes[0]["basis_code"] == "06101"
 
 
 def test_versioned_config_contains_the_approved_policy_set():
-    identity_rules = read_identity_overrides(ROOT / "config" / "food_master_source_identity_overrides.csv")
-    promotion_rules = read_promotion_rules(ROOT / "config" / "food_master_promoted_middle_foods.csv")
+    identity_rules = read_identity_overrides(ROOT / "config" / "ingredient_master_source_identity_overrides.csv")
+    promotion_rules = read_promotion_rules(ROOT / "config" / "ingredient_master_promoted_middle_foods.csv")
 
     assert len(identity_rules) == 8
     assert len(promotion_rules) == 21

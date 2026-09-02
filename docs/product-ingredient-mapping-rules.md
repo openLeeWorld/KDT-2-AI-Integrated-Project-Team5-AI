@@ -6,8 +6,8 @@
 같다고 볼 수 없다. Ingredient Master는 신선식품 도메인의 재료 축만 관리하며, 양념·조리·밀키트·완제품
 같은 푸드 상품과 메뉴·상황 같은 요리 의도는 Product 또는 서비스 태그 레이어에서 관리한다.
 
-현재 MVP의 물리 저장소 이름은 `food_master.food`와 `food_id`지만, 이 문서에서 연결 대상은 논리적인
-Ingredient다. 결과는 자동 확정값이 아니라, 근거와 함께 남기는 Ingredient 후보이다.
+Ingredient Master의 물리 저장소는 `ingredient_master.ingredient`이며, 연결 기본키는
+`ingredient_id`다. 결과는 자동 확정값이 아니라, 근거와 함께 남기는 Ingredient 후보이다.
 
 ```text
 상품 Variant
@@ -48,7 +48,7 @@ Product Variant → Ingredient 후보
 
 ### Ingredient 표준명 일치
 
-상품명에서 Food의 표준명이 직접 확인되면 후보로 만든다.
+상품명에서 Ingredient의 표준명이 직접 확인되면 후보로 만든다.
 
 ```text
 친환경 애호박 1개 → 애호박
@@ -128,7 +128,7 @@ Ingredient를 새로 만들거나, 상품명에 없는 재료를 확정하지 �
 | 항목 | 의미 |
 | --- | --- |
 | `variant_id` | 판매 Variant 식별자 |
-| `food_id` | 연결 후보 Ingredient의 물리 식별자 |
+| `ingredient_id` | 연결 후보 Ingredient의 물리 식별자 |
 | `mapping_status` | 후보·보류·미연결 상태 |
 | `matched_term` | 상품명 또는 동의어 중 실제 일치한 표현 |
 | `match_method` | 표준명 일치인지, 검토된 동의어인지 |

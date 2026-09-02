@@ -1,15 +1,15 @@
-"""Build and optionally load the MVP Food Master from source CSV/Parquet.
+"""Build and optionally load the MVP Ingredient Master from source CSV/Parquet.
 
 The loader applies reviewed identity rules while keeping the database model
 small:
 
-* one representative Food per resolved source branch;
-* only reviewed middle-category promotions become child Foods;
+* one representative Ingredient per resolved source branch;
+* only reviewed middle-category promotions become child Ingredients;
 * source-code collisions are resolved by explicit, versioned branch rules;
 * normalized aliases (for example 맵쌀 국수/멥쌀 국수) are emitted once.
 
 Nutrients, origin, production month, and raw/cooked state are source
-observations. They are deliberately not copied into ``food``.
+observations. They are deliberately not copied into ``ingredient``.
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from pathlib import Path
 from typing import Iterable, LiteralString, cast
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_IDENTITY_RULES = ROOT / "config" / "food_master_source_identity_overrides.csv"
-DEFAULT_PROMOTION_RULES = ROOT / "config" / "food_master_promoted_middle_foods.csv"
-DEFAULT_DDL = ROOT / "database" / "ddl" / "001_food_master_mvp.sql"
+DEFAULT_IDENTITY_RULES = ROOT / "config" / "ingredient_master_source_identity_overrides.csv"
+DEFAULT_PROMOTION_RULES = ROOT / "config" / "ingredient_master_promoted_middle_foods.csv"
+DEFAULT_DDL = ROOT / "database" / "ddl" / "001_ingredient_master_mvp.sql"
 EMPTY_VALUES = {"", "-", "none", "null", "nan", "해당없음"}
 LEVEL_FIELDS = {
     "REPRESENTATIVE": ("대표식품코드", "대표식품명"),
@@ -38,7 +38,7 @@ REQUIRED_FIELDS = {
     "식품대분류명",
     *[field for pair in LEVEL_FIELDS.values() for field in pair],
 }
-FoodKey = tuple[str, str]
+IngredientKey = tuple[str, str]
 
 
 @dataclass(frozen=True)
@@ -55,8 +55,8 @@ class IdentityOverride:
 @dataclass(frozen=True)
 class PromotionRule:
     large_category_code: str
-    representative_food_code: str
-    representative_food_name: str
+    representative_source_code: str
+    representative_source_name: str
     resolved_representative_code: str
     resolved_representative_name: str
     middle_category_code: str
@@ -66,32 +66,34 @@ class PromotionRule:
 
 
 @dataclass(frozen=True)
-class FoodCandidate:
+class IngredientCandidate:
     basis_level: str
     basis_code: str
     basis_name: str
     canonical_name: str
     category_name: str
     source_identity_key: str
-    parent_key: FoodKey | None
+    parent_key: IngredientKey | None
 
     @property
-    def key(self) -> FoodKey:
+    def key(self) -> IngredientKey:
         return (self.basis_level, self.source_identity_key)
 
 
 @dataclass
-class FoodPlan:
-    foods: list[FoodCandidate]
+class IngredientPlan:
+    ingredients: list[IngredientCandidate]
     blocked_codes: list[dict[str, object]]
     normalized_merges: list[dict[str, object]]
     applied_promotions: list[dict[str, object]]
 
     def report(self) -> dict[str, object]:
         return {
-            "planned_food_count": len(self.foods),
-            "representative_food_count": sum(food.basis_level == "REPRESENTATIVE" for food in self.foods),
-            "promoted_food_count": sum(food.basis_level == "MIDDLE" for food in self.foods),
+            "planned_ingredient_count": len(self.ingredients),
+            "representative_ingredient_count": sum(
+                ingredient.basis_level == "REPRESENTATIVE" for ingredient in self.ingredients
+            ),
+            "promoted_ingredient_count": sum(ingredient.basis_level == "MIDDLE" for ingredient in self.ingredients),
             "blocked_code_count": len(self.blocked_codes),
             "blocked_codes": self.blocked_codes,
             "normalized_merge_count": len(self.normalized_merges),
@@ -156,8 +158,8 @@ def read_identity_overrides(path: Path) -> list[IdentityOverride]:
         rows = list(csv.DictReader(handle))
     required = {
         "large_category_code",
-        "representative_food_code",
-        "representative_food_name_raw",
+        "representative_source_code",
+        "representative_source_name_raw",
         "resolved_representative_code",
         "resolved_representative_name",
         "source_identity_status",
@@ -171,8 +173,8 @@ def read_identity_overrides(path: Path) -> list[IdentityOverride]:
     for row in rows:
         item = IdentityOverride(
             large_category_code=normalize(row["large_category_code"]),
-            representative_code=normalize(row["representative_food_code"]),
-            representative_name_raw=normalize(row["representative_food_name_raw"]),
+            representative_code=normalize(row["representative_source_code"]),
+            representative_name_raw=normalize(row["representative_source_name_raw"]),
             resolved_code=normalize(row["resolved_representative_code"]),
             resolved_name=normalize(row["resolved_representative_name"]),
             status=normalize(row["source_identity_status"]),
@@ -197,8 +199,8 @@ def read_promotion_rules(path: Path) -> list[PromotionRule]:
         rows = list(csv.DictReader(handle))
     required = {
         "large_category_code",
-        "representative_food_code",
-        "representative_food_name",
+        "representative_source_code",
+        "representative_source_name",
         "resolved_representative_code",
         "resolved_representative_name",
         "middle_category_code",
@@ -217,8 +219,8 @@ def read_promotion_rules(path: Path) -> list[PromotionRule]:
         )
         rule = PromotionRule(
             large_category_code=normalize(row["large_category_code"]),
-            representative_food_code=normalize(row["representative_food_code"]),
-            representative_food_name=normalize(row["representative_food_name"]),
+            representative_source_code=normalize(row["representative_source_code"]),
+            representative_source_name=normalize(row["representative_source_name"]),
             resolved_representative_code=normalize(row["resolved_representative_code"]),
             resolved_representative_name=normalize(row["resolved_representative_name"]),
             middle_category_code=normalize(row["middle_category_code"]),
@@ -230,8 +232,8 @@ def read_promotion_rules(path: Path) -> list[PromotionRule]:
         if not all(
             (
                 rule.large_category_code,
-                rule.representative_food_code,
-                rule.representative_food_name,
+                rule.representative_source_code,
+                rule.representative_source_name,
                 rule.resolved_representative_code,
                 rule.resolved_representative_name,
                 rule.middle_category_code,
@@ -276,7 +278,7 @@ def build_plan(
     records: list[dict[str, str]],
     identity_overrides: list[IdentityOverride],
     promotion_rules: list[PromotionRule],
-) -> FoodPlan:
+) -> IngredientPlan:
     validate_source_columns(records)
     representatives, middles = _source_indexes(records)
     identity_map = {
@@ -289,8 +291,8 @@ def build_plan(
     }
     blocked_codes: list[dict[str, object]] = []
     normalized_merges: list[dict[str, object]] = []
-    candidates: dict[FoodKey, FoodCandidate] = {}
-    parent_lookup: dict[tuple[str, str, str], FoodCandidate] = {}
+    candidates: dict[IngredientKey, IngredientCandidate] = {}
+    parent_lookup: dict[tuple[str, str, str], IngredientCandidate] = {}
 
     for (large_code, rep_code), identities in sorted(representatives.items()):
         names = {(name, category, category_code) for name, category, category_code in identities}
@@ -324,7 +326,7 @@ def build_plan(
                 resolved_code = rep_code
                 resolved_name = rep_name
             source_key = representative_branch_key(large_code, resolved_code, resolved_name)
-            candidate = FoodCandidate(
+            candidate = IngredientCandidate(
                 basis_level="REPRESENTATIVE",
                 basis_code=resolved_code,
                 basis_name=resolved_name,
@@ -352,15 +354,15 @@ def build_plan(
         parent = parent_lookup.get(
             (
                 rule.large_category_code,
-                rule.representative_food_code,
-                rule.representative_food_name,
+                rule.representative_source_code,
+                rule.representative_source_name,
             )
         )
         if parent is None:
             raise ValueError(
-                "promotion parent가 대표 Food에 없습니다: "
-                f"{rule.large_category_code}/{rule.representative_food_code}/"
-                f"{rule.representative_food_name}"
+                "promotion parent가 대표 Ingredient에 없습니다: "
+                f"{rule.large_category_code}/{rule.representative_source_code}/"
+                f"{rule.representative_source_name}"
             )
         if (
             parent.basis_code != rule.resolved_representative_code
@@ -370,8 +372,8 @@ def build_plan(
         observed = middles.get(
             (
                 rule.large_category_code,
-                rule.representative_food_code,
-                rule.representative_food_name,
+                rule.representative_source_code,
+                rule.representative_source_name,
             ),
             set(),
         )
@@ -391,7 +393,7 @@ def build_plan(
             rule.resolved_representative_name,
             rule.canonical_name,
         )
-        candidate = FoodCandidate(
+        candidate = IngredientCandidate(
             basis_level="MIDDLE",
             basis_code=rule.middle_category_code,
             basis_name=selected_name,
@@ -414,31 +416,31 @@ def build_plan(
         )
 
     def resolve(
-        candidate: FoodCandidate,
-        ordered: list[FoodCandidate],
-        visiting: set[FoodKey],
+        candidate: IngredientCandidate,
+        ordered: list[IngredientCandidate],
+        visiting: set[IngredientKey],
     ) -> None:
         if candidate in ordered:
             return
         if candidate.key in visiting:
-            raise ValueError(f"Food parent 관계에 순환이 있습니다: {candidate.key}")
+            raise ValueError(f"Ingredient parent 관계에 순환이 있습니다: {candidate.key}")
         if candidate.parent_key:
             parent = candidates.get(candidate.parent_key)
             if parent is None:
-                raise ValueError(f"{candidate.key}의 parent가 Food 생성 대상에 없습니다: {candidate.parent_key}")
+                raise ValueError(f"{candidate.key}의 parent가 Ingredient 생성 대상에 없습니다: {candidate.parent_key}")
             visiting.add(candidate.key)
             resolve(parent, ordered, visiting)
             visiting.remove(candidate.key)
         ordered.append(candidate)
 
-    ordered: list[FoodCandidate] = []
+    ordered: list[IngredientCandidate] = []
     for candidate in sorted(candidates.values(), key=lambda item: item.key):
         resolve(candidate, ordered, set())
-    return FoodPlan(ordered, blocked_codes, normalized_merges, applied_promotions)
+    return IngredientPlan(ordered, blocked_codes, normalized_merges, applied_promotions)
 
 
 def apply_plan(
-    plan: FoodPlan,
+    plan: IngredientPlan,
     database_url: str,
     source_name: str,
     source_version: str,
@@ -459,56 +461,56 @@ def apply_plan(
             cursor.execute(
                 sql.SQL(
                     """
-                INSERT INTO food_master.food_source
+                INSERT INTO ingredient_master.ingredient_source
                     (source_name, source_version, source_uri)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (source_name, source_version)
                 DO UPDATE SET source_uri = EXCLUDED.source_uri
-                RETURNING food_source_id
+                RETURNING ingredient_source_id
                 """
                 ),
                 (source_name, source_version, source_uri),
             )
             source_row = cursor.fetchone()
             if source_row is None:
-                raise RuntimeError("food_source_id를 반환받지 못했습니다.")
+                raise RuntimeError("ingredient_source_id를 반환받지 못했습니다.")
             source_id = int(source_row[0])
-            loaded_ids: dict[FoodKey, int] = {}
-            for food in plan.foods:
-                parent_id = loaded_ids.get(food.parent_key) if food.parent_key else None
+            loaded_ingredient_ids: dict[IngredientKey, int] = {}
+            for ingredient in plan.ingredients:
+                parent_id = loaded_ingredient_ids.get(ingredient.parent_key) if ingredient.parent_key else None
                 cursor.execute(
                     sql.SQL(
                         """
-                    INSERT INTO food_master.food (
-                        canonical_name, parent_food_id, category_name, basis_level,
+                    INSERT INTO ingredient_master.ingredient (
+                        canonical_name, parent_ingredient_id, category_name, basis_level,
                         basis_code, basis_name, source_identity_key, basis_source_id
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (basis_source_id, source_identity_key)
                     DO UPDATE SET
                         canonical_name = EXCLUDED.canonical_name,
-                        parent_food_id = EXCLUDED.parent_food_id,
+                        parent_ingredient_id = EXCLUDED.parent_ingredient_id,
                         category_name = EXCLUDED.category_name,
                         basis_level = EXCLUDED.basis_level,
                         basis_code = EXCLUDED.basis_code,
                         basis_name = EXCLUDED.basis_name
-                    RETURNING food_id
+                    RETURNING ingredient_id
                     """
                     ),
                     (
-                        food.canonical_name,
+                        ingredient.canonical_name,
                         parent_id,
-                        food.category_name,
-                        food.basis_level,
-                        food.basis_code,
-                        food.basis_name,
-                        food.source_identity_key,
+                        ingredient.category_name,
+                        ingredient.basis_level,
+                        ingredient.basis_code,
+                        ingredient.basis_name,
+                        ingredient.source_identity_key,
                         source_id,
                     ),
                 )
-                food_row = cursor.fetchone()
-                if food_row is None:
-                    raise RuntimeError(f"{food.canonical_name}의 food_id를 반환받지 못했습니다.")
-                loaded_ids[food.key] = int(food_row[0])
+                ingredient_row = cursor.fetchone()
+                if ingredient_row is None:
+                    raise RuntimeError(f"{ingredient.canonical_name}의 ingredient_id를 반환받지 못했습니다.")
+                loaded_ingredient_ids[ingredient.key] = int(ingredient_row[0])
 
 
 def parse_args() -> argparse.Namespace:
