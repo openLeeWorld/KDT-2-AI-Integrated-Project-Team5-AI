@@ -4,6 +4,6 @@ CI/CD workflow 파일을 관리하는 디렉터리입니다.
 
 ## Workflows
 
-- `ci.yaml`: Python lint/test, frontend lint/build, local/dev/prod/EC2 Compose와 Nginx 검증
+- `ci.yaml`: Python lint/test 검증
 - `security.yaml`: Gitleaks secret scan, Trivy filesystem scan
 - `codeql.yaml`: Python, JavaScript/TypeScript SAST

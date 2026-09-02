@@ -37,9 +37,7 @@ def row(
 def test_representative_is_the_default_food():
     plan = build_plan([row(), row(middle_code="0619805", middle_name="애호박")], [], [])
 
-    assert [(food.basis_level, food.canonical_name) for food in plan.foods] == [
-        ("REPRESENTATIVE", "호박")
-    ]
+    assert [(food.basis_level, food.canonical_name) for food in plan.foods] == [("REPRESENTATIVE", "호박")]
 
 
 def test_r2_promotion_creates_a_child_food():
@@ -199,12 +197,8 @@ def test_unresolved_collision_is_blocked():
 
 
 def test_versioned_config_contains_the_approved_policy_set():
-    identity_rules = read_identity_overrides(
-        ROOT / "config" / "food_master_source_identity_overrides.csv"
-    )
-    promotion_rules = read_promotion_rules(
-        ROOT / "config" / "food_master_promoted_middle_foods.csv"
-    )
+    identity_rules = read_identity_overrides(ROOT / "config" / "food_master_source_identity_overrides.csv")
+    promotion_rules = read_promotion_rules(ROOT / "config" / "food_master_promoted_middle_foods.csv")
 
     assert len(identity_rules) == 8
     assert len(promotion_rules) == 21

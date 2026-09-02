@@ -18,9 +18,10 @@ import argparse
 import csv
 import json
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, LiteralString, cast
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_IDENTITY_RULES = ROOT / "config" / "food_master_source_identity_overrides.csv"
@@ -89,12 +90,8 @@ class FoodPlan:
     def report(self) -> dict[str, object]:
         return {
             "planned_food_count": len(self.foods),
-            "representative_food_count": sum(
-                food.basis_level == "REPRESENTATIVE" for food in self.foods
-            ),
-            "promoted_food_count": sum(
-                food.basis_level == "MIDDLE" for food in self.foods
-            ),
+            "representative_food_count": sum(food.basis_level == "REPRESENTATIVE" for food in self.foods),
+            "promoted_food_count": sum(food.basis_level == "MIDDLE" for food in self.foods),
             "blocked_code_count": len(self.blocked_codes),
             "blocked_codes": self.blocked_codes,
             "normalized_merge_count": len(self.normalized_merges),
@@ -115,9 +112,7 @@ def compact_name(value: str) -> str:
     return "".join(value.split())
 
 
-def representative_branch_key(
-    large_category_code: str, resolved_code: str, resolved_name: str
-) -> str:
+def representative_branch_key(large_category_code: str, resolved_code: str, resolved_name: str) -> str:
     return f"K-FIND:{large_category_code}:{resolved_code}:{compact_name(resolved_name)}"
 
 
@@ -142,14 +137,12 @@ def read_source(path: Path) -> list[dict[str, str]]:
         try:
             import pyarrow.parquet as pq
         except ImportError as exc:  # pragma: no cover - dependency error path
-            raise RuntimeError(
-                "Parquet 입력에는 pyarrow가 필요합니다. `uv sync` 후 다시 실행하세요."
-            ) from exc
+            raise RuntimeError("Parquet 입력에는 pyarrow가 필요합니다. `uv sync` 후 다시 실행하세요.") from exc
         return [dict(row) for row in pq.read_table(path).to_pylist()]
     raise ValueError("입력 파일은 .csv 또는 .parquet 이어야 합니다.")
 
 
-def validate_source_columns(records: Iterable[dict[str, object]]) -> None:
+def validate_source_columns(records: Iterable[Mapping[str, object]]) -> None:
     first = next(iter(records), None)
     if first is None:
         raise ValueError("원천 데이터에 행이 없습니다.")
@@ -172,10 +165,7 @@ def read_identity_overrides(path: Path) -> list[IdentityOverride]:
     }
     missing = required - set(rows[0] if rows else {})
     if missing:
-        raise ValueError(
-            "identity override CSV에 필수 컬럼이 없습니다: "
-            + ", ".join(sorted(missing))
-        )
+        raise ValueError("identity override CSV에 필수 컬럼이 없습니다: " + ", ".join(sorted(missing)))
     overrides: list[IdentityOverride] = []
     seen: set[tuple[str, str, str]] = set()
     for row in rows:
@@ -218,18 +208,12 @@ def read_promotion_rules(path: Path) -> list[PromotionRule]:
     }
     missing = required - set(rows[0] if rows else {})
     if missing:
-        raise ValueError(
-            "promotion CSV에 필수 컬럼이 없습니다: " + ", ".join(sorted(missing))
-        )
+        raise ValueError("promotion CSV에 필수 컬럼이 없습니다: " + ", ".join(sorted(missing)))
     rules: list[PromotionRule] = []
     seen: set[tuple[str, str, str]] = set()
     for row in rows:
         source_middle_codes = tuple(
-            code
-            for code in (
-                normalize(value) for value in row["source_middle_codes"].split("|")
-            )
-            if code
+            code for code in (normalize(value) for value in row["source_middle_codes"].split("|")) if code
         )
         rule = PromotionRule(
             large_category_code=normalize(row["large_category_code"]),
@@ -282,13 +266,9 @@ def _source_indexes(
         middle_code = normalize(row.get("식품중분류코드"))
         middle_name = normalize(row.get("식품중분류명"))
         if large_code and large_name and rep_code and rep_name:
-            representatives[(large_code, rep_code)].add(
-                (rep_name, large_name, large_code)
-            )
+            representatives[(large_code, rep_code)].add((rep_name, large_name, large_code))
             if middle_code and middle_name:
-                middles[(large_code, rep_code, rep_name)].add(
-                    (middle_code, middle_name)
-                )
+                middles[(large_code, rep_code, rep_name)].add((middle_code, middle_name))
     return representatives, middles
 
 
@@ -313,10 +293,7 @@ def build_plan(
     parent_lookup: dict[tuple[str, str, str], FoodCandidate] = {}
 
     for (large_code, rep_code), identities in sorted(representatives.items()):
-        names = {
-            (name, category, category_code)
-            for name, category, category_code in identities
-        }
+        names = {(name, category, category_code) for name, category, category_code in identities}
         if len(names) != 1:
             matching = [
                 item
@@ -332,12 +309,9 @@ def build_plan(
                         "large_category_code": large_code,
                         "basis_code": rep_code,
                         "identities": [
-                            {"basis_name": name, "category_name": category}
-                            for name, category, _ in sorted(names)
+                            {"basis_name": name, "category_name": category} for name, category, _ in sorted(names)
                         ],
-                        "reason": (
-                            "공식 대표식품 코드 충돌에 대한 branch rule이 없습니다."
-                        ),
+                        "reason": ("공식 대표식품 코드 충돌에 대한 branch rule이 없습니다."),
                     }
                 )
                 continue
@@ -349,9 +323,7 @@ def build_plan(
             else:
                 resolved_code = rep_code
                 resolved_name = rep_name
-            source_key = representative_branch_key(
-                large_code, resolved_code, resolved_name
-            )
+            source_key = representative_branch_key(large_code, resolved_code, resolved_name)
             candidate = FoodCandidate(
                 basis_level="REPRESENTATIVE",
                 basis_code=resolved_code,
@@ -394,9 +366,7 @@ def build_plan(
             parent.basis_code != rule.resolved_representative_code
             or parent.basis_name != rule.resolved_representative_name
         ):
-            raise ValueError(
-                f"promotion의 resolved representative가 branch rule과 다릅니다: {rule}"
-            )
+            raise ValueError(f"promotion의 resolved representative가 branch rule과 다릅니다: {rule}")
         observed = middles.get(
             (
                 rule.large_category_code,
@@ -408,10 +378,7 @@ def build_plan(
         observed_codes = {code for code, _ in observed}
         missing_middle_codes = sorted(set(rule.source_middle_codes) - observed_codes)
         if missing_middle_codes:
-            raise ValueError(
-                "promotion의 middle code가 원천에 없습니다: "
-                f"{missing_middle_codes} ({rule})"
-            )
+            raise ValueError(f"promotion의 middle code가 원천에 없습니다: {missing_middle_codes} ({rule})")
         selected_name = next(
             (name for code, name in observed if code == rule.middle_category_code),
             None,
@@ -434,9 +401,7 @@ def build_plan(
             parent_key=parent.key,
         )
         if candidate.key in candidates:
-            raise ValueError(
-                f"promotion identity가 중복됩니다: {candidate.source_identity_key}"
-            )
+            raise ValueError(f"promotion identity가 중복됩니다: {candidate.source_identity_key}")
         candidates[candidate.key] = candidate
         applied_promotions.append(
             {
@@ -460,10 +425,7 @@ def build_plan(
         if candidate.parent_key:
             parent = candidates.get(candidate.parent_key)
             if parent is None:
-                raise ValueError(
-                    f"{candidate.key}의 parent가 Food 생성 대상에 없습니다: "
-                    f"{candidate.parent_key}"
-                )
+                raise ValueError(f"{candidate.key}의 parent가 Food 생성 대상에 없습니다: {candidate.parent_key}")
             visiting.add(candidate.key)
             resolve(parent, ordered, visiting)
             visiting.remove(candidate.key)
@@ -486,31 +448,37 @@ def apply_plan(
 ) -> None:
     try:
         import psycopg
+        from psycopg import sql
     except ImportError as exc:  # pragma: no cover - dependency error path
-        raise RuntimeError(
-            "PostgreSQL 적재에는 psycopg가 필요합니다. `uv sync` 후 다시 실행하세요."
-        ) from exc
+        raise RuntimeError("PostgreSQL 적재에는 psycopg가 필요합니다. `uv sync` 후 다시 실행하세요.") from exc
     with psycopg.connect(database_url) as connection:
         with connection.cursor() as cursor:
             if apply_ddl:
-                cursor.execute(ddl_path.read_text(encoding="utf-8"))
+                ddl = cast(LiteralString, ddl_path.read_text(encoding="utf-8"))
+                cursor.execute(sql.SQL(ddl))
             cursor.execute(
-                """
+                sql.SQL(
+                    """
                 INSERT INTO food_master.food_source
                     (source_name, source_version, source_uri)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (source_name, source_version)
                 DO UPDATE SET source_uri = EXCLUDED.source_uri
                 RETURNING food_source_id
-                """,
+                """
+                ),
                 (source_name, source_version, source_uri),
             )
-            source_id = cursor.fetchone()[0]
+            source_row = cursor.fetchone()
+            if source_row is None:
+                raise RuntimeError("food_source_id를 반환받지 못했습니다.")
+            source_id = int(source_row[0])
             loaded_ids: dict[FoodKey, int] = {}
             for food in plan.foods:
                 parent_id = loaded_ids.get(food.parent_key) if food.parent_key else None
                 cursor.execute(
-                    """
+                    sql.SQL(
+                        """
                     INSERT INTO food_master.food (
                         canonical_name, parent_food_id, category_name, basis_level,
                         basis_code, basis_name, source_identity_key, basis_source_id
@@ -524,7 +492,8 @@ def apply_plan(
                         basis_code = EXCLUDED.basis_code,
                         basis_name = EXCLUDED.basis_name
                     RETURNING food_id
-                    """,
+                    """
+                    ),
                     (
                         food.canonical_name,
                         parent_id,
@@ -536,7 +505,10 @@ def apply_plan(
                         source_id,
                     ),
                 )
-                loaded_ids[food.key] = cursor.fetchone()[0]
+                food_row = cursor.fetchone()
+                if food_row is None:
+                    raise RuntimeError(f"{food.canonical_name}의 food_id를 반환받지 못했습니다.")
+                loaded_ids[food.key] = int(food_row[0])
 
 
 def parse_args() -> argparse.Namespace:
@@ -567,11 +539,9 @@ def main() -> None:
     ):
         if not path.is_file():
             raise FileNotFoundError(f"{label}을(를) 찾을 수 없습니다: {path}")
-    if not args.dry_run and not args.database_url:
-        raise ValueError(
-            "실제 적재에는 --database-url이 필요합니다. "
-            "검토만 하면 --dry-run을 사용하세요."
-        )
+    database_url = args.database_url
+    if not args.dry_run and not database_url:
+        raise ValueError("실제 적재에는 --database-url이 필요합니다. 검토만 하면 --dry-run을 사용하세요.")
     if args.apply_ddl and not args.ddl_path.is_file():
         raise FileNotFoundError(f"DDL 파일을 찾을 수 없습니다: {args.ddl_path}")
     plan = build_plan(
@@ -582,14 +552,12 @@ def main() -> None:
     report = plan.report()
     if args.report_path:
         args.report_path.parent.mkdir(parents=True, exist_ok=True)
-        args.report_path.write_text(
-            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        args.report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if not args.dry_run:
         apply_plan(
             plan,
-            args.database_url,
+            database_url,
             args.source_name,
             args.source_version,
             args.source_uri,

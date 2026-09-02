@@ -154,10 +154,11 @@ def read_foods_from_file(path: Path) -> list[Food]:
         "source_identity_key",
     }
     rows = read_rows(path)
-    if not rows or (missing := required - set(rows[0])):
-        raise ValueError(
-            f"Food Master export 필수 컬럼이 없습니다: {', '.join(sorted(missing))}"
-        )
+    if not rows:
+        raise ValueError("Food Master export에 행이 없습니다.")
+    missing = required - set(rows[0])
+    if missing:
+        raise ValueError(f"Food Master export 필수 컬럼이 없습니다: {', '.join(sorted(missing))}")
     return [
         Food(
             food_id=text(row["food_id"]),
@@ -189,10 +190,11 @@ def read_foods_from_database(database_url: str) -> list[Food]:
 def read_products(path: Path) -> list[Product]:
     rows = read_rows(path)
     required = {"variant_id", "variant_name", "category_path"}
-    if not rows or (missing := required - set(rows[0])):
-        raise ValueError(
-            f"상품 입력 필수 컬럼이 없습니다: {', '.join(sorted(missing))}"
-        )
+    if not rows:
+        raise ValueError("상품 입력에 행이 없습니다.")
+    missing = required - set(rows[0])
+    if missing:
+        raise ValueError(f"상품 입력 필수 컬럼이 없습니다: {', '.join(sorted(missing))}")
     return [
         Product(
             variant_id=text(row["variant_id"]),
@@ -206,9 +208,7 @@ def read_products(path: Path) -> list[Product]:
 
 
 def scope(product: Product) -> tuple[str, str, str]:
-    categories = [
-        part.strip() for part in product.category_path.split(" > ") if part.strip()
-    ]
+    categories = [part.strip() for part in product.category_path.split(" > ") if part.strip()]
     root, path, name = (
         (categories[0] if categories else ""),
         product.category_path,
@@ -217,10 +217,7 @@ def scope(product: Product) -> tuple[str, str, str]:
     if not product.option_split_complete:
         return "REVIEW", "option_not_split", "옵션별 상품이 분리되지 않음"
     if root in {"채소", "쌀/잡곡", "과일/견과"}:
-        if any(
-            term in name
-            for term in {"&", "앤", "혼합", "믹스", "모둠", "모듬", "샐러드"}
-        ):
+        if any(term in name for term in {"&", "앤", "혼합", "믹스", "모둠", "모듬", "샐러드"}):
             return "REVIEW", "multiple_foods", "여러 원물이 섞인 상품"
         if any(term in path for term in {"간편", "냉동", "믹스", "샐러드"}):
             return "REVIEW", "prepared_food", "손질·냉동·혼합 여부 확인 필요"
@@ -247,17 +244,13 @@ def scope(product: Product) -> tuple[str, str, str]:
                 "꼬치",
                 "튀김",
             }
-            if "한끼통살" in name or any(
-                marker in plain_name for marker in processed_markers
-            ):
+            if "한끼통살" in name or any(marker in plain_name for marker in processed_markers):
                 return (
                     "DEFER",
                     "processed_or_composite",
                     "맛·소스·조리 신호가 있는 닭 가공식품",
                 )
-        if any(
-            term in path for term in {"가공란", "구운란", "반숙란", "훈제란", "큐브"}
-        ):
+        if any(term in path for term in {"가공란", "구운란", "반숙란", "훈제란", "큐브"}):
             return "REVIEW", "prepared_food", "가공 또는 성형 축산물"
         return "TARGET", "livestock_egg_raw", "축산·난류 원물"
     if root == "수산":
@@ -301,9 +294,7 @@ def product_attributes(product_name: str, food: Food) -> tuple[tuple[str, str], 
     return tuple(sorted(attributes.items()))
 
 
-def match_product(
-    product: Product, foods: list[Food]
-) -> tuple[str, str, str, list[Candidate]]:
+def match_product(product: Product, foods: list[Food]) -> tuple[str, str, str, list[Candidate]]:
     decision, scope_class, reason = scope(product)
     if decision != "TARGET":
         return decision, scope_class, reason, []
@@ -313,11 +304,7 @@ def match_product(
     for food in pool:
         term = compact(food.canonical_name)
         if len(term) >= 2 and term in name:
-            candidates.append(
-                Candidate(
-                    food, food.canonical_name, "canonical_name", (), len(term) * 10
-                )
-            )
+            candidates.append(Candidate(food, food.canonical_name, "canonical_name", (), len(term) * 10))
     by_name = {compact(food.canonical_name): food for food in pool}
     category = compact(product.category_path)
     for (
@@ -328,60 +315,35 @@ def match_product(
         attribute_value,
     ) in ALIAS_RULES:
         alias_term = compact(alias)
-        if alias_term not in name or (
-            required_category and compact(required_category) not in category
-        ):
+        if alias_term not in name or (required_category and compact(required_category) not in category):
             continue
         food = by_name.get(compact(canonical))
         if food:
             attributes = ((attribute_key, attribute_value),) if attribute_key else ()
-            candidates.append(
-                Candidate(
-                    food, alias, "reviewed_alias", attributes, len(alias_term) * 10 + 40
-                )
-            )
+            candidates.append(Candidate(food, alias, "reviewed_alias", attributes, len(alias_term) * 10 + 40))
     for prefix, canonical, attribute_key, attribute_value in CATEGORY_ANCHORS:
-        if product.category_path != prefix and not product.category_path.startswith(
-            prefix + " > "
-        ):
+        if product.category_path != prefix and not product.category_path.startswith(prefix + " > "):
             continue
         food = by_name.get(compact(canonical))
         if food:
             attributes = ((attribute_key, attribute_value),) if attribute_key else ()
-            candidates.append(
-                Candidate(food, prefix, "category_anchor", attributes, 60)
-            )
+            candidates.append(Candidate(food, prefix, "category_anchor", attributes, 60))
     if "토마토" in name:
-        candidates = [
-            c
-            for c in candidates
-            if compact(c.food.canonical_name) in {"토마토", "방울토마토"}
-        ]
+        candidates = [c for c in candidates if compact(c.food.canonical_name) in {"토마토", "방울토마토"}]
     if "호박고구마" in name:
-        candidates = [
-            c for c in candidates if compact(c.food.canonical_name) == "고구마"
-        ]
+        candidates = [c for c in candidates if compact(c.food.canonical_name) == "고구마"]
     if "파프리카" in name:
+        candidates = [c for c in candidates if compact(c.food.canonical_name) == "파프리카착색단고추"]
+    if any(compact(candidate.food.canonical_name) == "백진주" for candidate in candidates):
         candidates = [
-            c
-            for c in candidates
-            if compact(c.food.canonical_name) == "파프리카착색단고추"
-        ]
-    if any(
-        compact(candidate.food.canonical_name) == "백진주" for candidate in candidates
-    ):
-        candidates = [
-            candidate
-            for candidate in candidates
-            if compact(candidate.food.canonical_name) not in {"멥쌀", "찹쌀"}
+            candidate for candidate in candidates if compact(candidate.food.canonical_name) not in {"멥쌀", "찹쌀"}
         ]
     matched_terms = [compact(candidate.matched_term) for candidate in candidates]
     candidates = [
         candidate
         for candidate in candidates
         if not any(
-            compact(candidate.matched_term) != other
-            and compact(candidate.matched_term) in other
+            compact(candidate.matched_term) != other and compact(candidate.matched_term) in other
             for other in matched_terms
         )
     ]
@@ -389,9 +351,7 @@ def match_product(
     if hints:
         grouped: dict[str, list[Candidate]] = {}
         for candidate in candidates:
-            grouped.setdefault(compact(candidate.food.canonical_name), []).append(
-                candidate
-            )
+            grouped.setdefault(compact(candidate.food.canonical_name), []).append(candidate)
         candidates = [
             item
             for group in grouped.values()
@@ -403,9 +363,7 @@ def match_product(
         previous = best.get(candidate.food.food_id)
         if previous is None or candidate.score > previous.score:
             best[candidate.food.food_id] = candidate
-        attributes_by_food.setdefault(candidate.food.food_id, {}).update(
-            dict(candidate.attributes)
-        )
+        attributes_by_food.setdefault(candidate.food.food_id, {}).update(dict(candidate.attributes))
         attributes_by_food[candidate.food.food_id].update(
             dict(product_attributes(product.variant_name, candidate.food))
         )
@@ -414,23 +372,13 @@ def match_product(
             food=candidate.food,
             matched_term=candidate.matched_term,
             match_method=candidate.match_method,
-            attributes=tuple(
-                sorted(attributes_by_food[candidate.food.food_id].items())
-            ),
+            attributes=tuple(sorted(attributes_by_food[candidate.food.food_id].items())),
             score=candidate.score,
         )
         for candidate in best.values()
     ]
-    promoted_parent_ids = {
-        candidate.food.parent_food_id
-        for candidate in candidates
-        if candidate.food.parent_food_id
-    }
-    candidates = [
-        candidate
-        for candidate in candidates
-        if candidate.food.food_id not in promoted_parent_ids
-    ]
+    promoted_parent_ids = {candidate.food.parent_food_id for candidate in candidates if candidate.food.parent_food_id}
+    candidates = [candidate for candidate in candidates if candidate.food.food_id not in promoted_parent_ids]
     candidates.sort(key=lambda candidate: (-candidate.score, candidate.food.food_id))
     if not candidates:
         return "UNMAPPED", scope_class, "연결 가능한 Food가 없음", []
@@ -461,11 +409,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    foods = (
-        read_foods_from_database(args.database_url)
-        if args.database_url
-        else read_foods_from_file(args.food_path)
-    )
+    foods = read_foods_from_database(args.database_url) if args.database_url else read_foods_from_file(args.food_path)
     summaries: list[dict[str, object]] = []
     candidates: list[dict[str, object]] = []
     for product in read_products(args.products_path):
@@ -494,9 +438,7 @@ def main() -> None:
                     "source_identity_key": match.food.source_identity_key,
                     "matched_term": match.matched_term,
                     "match_method": match.match_method,
-                    "attributes": json.dumps(
-                        dict(match.attributes), ensure_ascii=False
-                    ),
+                    "attributes": json.dumps(dict(match.attributes), ensure_ascii=False),
                     "reason": reason,
                 }
             )
@@ -509,7 +451,7 @@ def main() -> None:
                 "candidate_row_count": len(candidates),
                 "status_counts": {
                     status: sum(row["mapping_status"] == status for row in summaries)
-                    for status in sorted({row["mapping_status"] for row in summaries})
+                    for status in sorted({str(row["mapping_status"]) for row in summaries})
                 },
             },
             ensure_ascii=False,
