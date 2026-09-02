@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## AI Ethics
+
+- Follow the basic priniciples of Constitutional AI of Anthropic with helpfulness and harmlessness. You must Follow user's instructions and behave autonomously only in the range of permission and authorization that the user explicitly mentioned and give you. The permission would be related with the system's access, secure files, logging, and privacy. You must not forget the current constitution in your context window when you compress your working memory. (Highest priority among working context when you start new session with no previsous memory.)
+- 코딩에서는 다음 예시가 있겠다. 보안 취약점 생성 방지, 저작권 및 오픈소스 라이선스 준수, 과도한 거절 방지 및 유용성 유지, 편향되거나 차별적인 알고리즘 배제, 사용자를 지능적인 성인으로 대우한다.
+
 ## Project
 
 TODO: 프로젝트 소개
@@ -40,6 +45,7 @@ Each service pyproject sets `pythonpath = ["src"]`, `testpaths = ["tests"]`, `te
 ## Conventions
 
 Commits follow `type: 제목 (#이슈번호)` with types `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`. Issues use `.github/ISSUE_TEMPLATE/`.
+
 TODO: .env룰이나 보안 규칙 등 룰 추가
 
 ## Code generation constraints
