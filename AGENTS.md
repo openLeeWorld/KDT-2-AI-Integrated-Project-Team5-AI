@@ -15,7 +15,7 @@
 
 - NEVER disclose or leak passwords, private API keys, or database credentials.
 - Mask any PII (Personally Identifiable Information) before processing.
-- Always ask for human confirmation before executing any shell commands or modifying system files.
+- Always ask for human confirmation before executing any shell commands or modifying system files. 단, uv run pyright, uv run ruff 등 정적 체크는 알아서 실행 후 오류 사항 수정
 - Refer to these security protocols for every code generation task.
 
 ### 1. PR 설명은 8섹션 템플릿 사용
@@ -50,32 +50,28 @@
 - 발표/마감 직전이면 build 깨진 상태로 두면 안 됨
 - 거대한 리팩토링은 손대지 말 것 (안정 > 깔끔), 사용자가 지시한 리팩토링 수행
 
-### 6. 검증 모두 통과해야 보고
-
-- uv run pyright, uv run ruff 등 정적 체크는 알아서 실행 후 오류사항 수정 후 작업 세션 완료하기
-
 ## 작업 패턴
 
 ### 7. 작은 단위로 끊기
 
-- 한 번에 5~6개 파일 이내로 변경
+- 가능하면 작업 단위 한번에 5~6개 파일 이내로 변경하고 최대 10개 넘지 않도록
 - 작업 끝나면 검증 한 번에 통과시키고 보고
 - "작업 → 검증 → 보고" 사이클을 짧게 반복
 
 ### 8. PR 작성 전 확인
 
 - [ ] PR 설명 8섹션 채웠는가?
-- [ ] 시각 자료 (스크린샷) 첨부했는가?
+- [ ] 시각 자료 (스크린샷) 첨부했는가? (선택)
 - [ ] 검증 3종 통과했는가?
 - [ ] 중국어/한자 0건인가?
-- [ ] `main` 브랜치와 충돌 0인가? (`git log --all --oneline -- <file>` 로 특정 파일 누가 건드렸는지 확인)
+- [ ] `main` 브랜치와 충돌 0인가?
 
 ## 9. 타입 시스템 및 린팅
 
 - 이 프로젝트는 **엄격한 파이썬 타입 힌트(Strict Type Hinting)**를 준수합니다.
 - 코드를 변경하거나 새로 작성할 때는 반드시 Pylance/Pyright 기준에 맞게 모든 매개변수와 반환값의 타입을 명시해야 합니다.
 - 파일 수정 도구(Edit tool)를 사용한 후에는 아래 명령어를 실행하여 타입 에러가 없는지 자발적으로 검증하세요.
-  - 타입 검사 명령어: `uv run pyright` (cd <해당 폴더 이동 후>)
+- 타입 검사 명령어: `uv run pyright` (cd <해당 폴더 이동 후>)
 
 ## 참고 문서
 
