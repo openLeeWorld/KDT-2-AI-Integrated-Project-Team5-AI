@@ -27,6 +27,7 @@ repos:
         types: [python]
         pass_filenames: false
 
+  # 아래는 로컬 pyright이 오류가 없어서 주석으로 남긴 원격 pyright 검사입니다.
   # - repo: https://github.com/RobertCraigie/pyright-python
   #   rev: v1.1.411
   #   hooks:
