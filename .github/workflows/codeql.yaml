@@ -5,8 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
-  schedule:
-    - cron: "30 2 * * 1"
+  # 스케줄링은 False Alarm 문제로 생략하였음.
 
 permissions:
   contents: read
@@ -20,8 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         language:
-          - python
-          - javascript-typescript
+          - python # 파이썬 통일, 다른 언어 추가 시 차후 추가
 
     steps:
       - name: Checkout

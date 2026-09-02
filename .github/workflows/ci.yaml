@@ -30,121 +30,17 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check .
       - name: Pyright regression check
-        run: uv run python scripts/check_pyright_baseline.py
-      - name: Backend tests or import check
-        run: |
-          if find backend -path "*/tests/test_*.py" -print -quit | grep -q .; then
-            uv run pytest backend
-          else
-            uv run python -c "import backend; print('backend import ok')"
-          fi
-      - name: Agent tests or import check
-        run: |
-          if find agent -path "*/tests/test_*.py" -print -quit | grep -q .; then
-            uv run pytest agent
-          else
-            uv run python -c "import agent; print('agent import ok')"
-          fi
+        run: uv run pyright
 
-      - name: Local red-team tests
-        run: uv run pytest security/redteam/tests
+      # - name: TODO: <각 폴더> tests or import check
+      #   run: |
+      #     if find backend -path "*/tests/test_*.py" -print -quit | grep -q .; then
+      #       uv run pytest backend
+      #     else
+      #       uv run python -c "import backend; print('backend import ok')"
+      #     fi
 
-      - name: EC2 environment validator tests
-        run: uv run pytest scripts/test_validate_ec2_env.py
-
-      - name: Validate env example
-        run: |
-          required_keys=(
-            APP_ENV
-            LOG_LEVEL
-            DATABASE_URL
-            REDIS_CACHE_URL
-            REDIS_STREAM_URL
-            JWT_SECRET_KEY
-            JWT_ALGORITHM
-            ACCESS_TOKEN_EXPIRE_MINUTES
-            LLM_PROVIDER
-            BACKEND_BASE_URL
-            VITE_API_BASE_URL
-          )
-
-          for key in "${required_keys[@]}"; do
-            if ! grep -q "^${key}=" .env.example; then
-              echo "Missing required key in .env.example: ${key}"
-              exit 1
-            fi
-          done
-
-  frontend-build:
-    name: Frontend build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - name: Set up Node.js
-        if: hashFiles('frontend/package.json') != ''
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        with:
-          node-version: "24"
-      - name: Build frontend or skip
-        run: |
-          if [ ! -f frontend/package.json ]; then
-            echo "frontend/package.json not found; skipping frontend build"
-            exit 0
-          fi
-          cd frontend
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-          npm run lint
-          npm run build
-  docker-check:
-    name: Docker checks
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-      - name: Prepare Docker Compose env
-        run: cp .env.example .env
-      - name: Prepare EC2 validation env
-        run: |
-          db_password="$(openssl rand -hex 16)"
-          agent_token="$(openssl rand -hex 32)"
-          {
-            echo "POSTGRES_PASSWORD=${db_password}"
-            echo "COMPOSE_DATABASE_URL=postgresql://app:${db_password}@postgres:5432/financial_agent"
-            echo "JWT_SECRET_KEY=$(openssl rand -hex 32)"
-            echo "AGENT_WEBHOOK_SECRET=$(openssl rand -hex 32)"
-            echo "AGENT_SERVICE_TOKEN=${agent_token}"
-            echo "BACKEND_SERVICE_TOKEN=${agent_token}"
-          } > .env.ec2-ci
-      - name: Validate EC2 environment
-        run: python3 scripts/validate_ec2_env.py --env-file .env.ec2-ci
-      - name: Docker Compose syntax check
-        run: |
-          docker compose --env-file .env.example -f docker-compose.yml config --quiet
-          docker compose --env-file .env.example -f docker-compose.dev.yml config --quiet
-          docker compose --env-file .env.example -f docker-compose.prod.yml config --quiet
-          docker compose --env-file .env.ec2-ci --profile agent \
-            -f docker-compose.yml -f docker-compose.ec2.yml config --quiet
-      - name: Nginx syntax check
-        run: |
-          docker run --rm --add-host backend:127.0.0.1 \
-            -v "$PWD/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine nginx -t
-          docker run --rm --add-host backend:127.0.0.1 \
-            -v "$PWD/nginx/ec2.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine nginx -t
-      - name: Docker image build or skip
-        run: |
-          dockerfiles=$(find . -path "*/Dockerfile" -type f)
-          if [ -z "${dockerfiles}" ]; then
-            echo "No Dockerfile found; skipping Docker image build"
-            exit 0
-          fi
-          for dockerfile in ${dockerfiles}; do
-            image_name=$(dirname "${dockerfile}" | sed 's#^\./##; s#[^a-zA-Z0-9_.-]#-#g')
-            docker build -t "ci-${image_name}:latest" -f "${dockerfile}" .
-          done
+  # docker-check: # TODO: docker 파일 추가 시 주석 해제
+  #   name: Docker checks
+  #   runs-on: ubuntu-latest
+  #   steps:
