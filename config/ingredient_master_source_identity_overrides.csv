@@ -1,0 +1,9 @@
+large_category_code,representative_source_code,representative_source_name_raw,resolved_representative_code,resolved_representative_name,source_identity_status,resolution_basis
+01,01010,맵쌀 국수,01010,멥쌀 국수,CONFIRMED_NORMALIZED_MERGE,맵쌀은 멥쌀의 표기 변이로 병합
+01,01010,멥쌀 국수,01010,멥쌀 국수,CONFIRMED_NORMALIZED_MERGE,맵쌀은 멥쌀의 표기 변이로 병합
+06,06066,무순,06066-02,무순,CONFIRMED_INTERNAL_BRANCH_CODE,동일 원본 코드의 서로 다른 식품 branch를 내부 식별자로 분리
+06,06066,무청,06066-01,무청,CONFIRMED_INTERNAL_BRANCH_CODE,동일 원본 코드의 서로 다른 식품 branch를 내부 식별자로 분리
+06,06101,상추,06101-01,상추,CONFIRMED_INTERNAL_BRANCH_CODE,동일 원본 코드의 서로 다른 식품 branch를 내부 식별자로 분리
+06,06101,생강,06101-02,생강,CONFIRMED_INTERNAL_BRANCH_CODE,동일 원본 코드의 서로 다른 식품 branch를 내부 식별자로 분리
+12,12845,진두발,12845-01,진두발,CONFIRMED_INTERNAL_BRANCH_CODE,동일 원본 코드의 서로 다른 식품 branch를 내부 식별자로 분리
+12,12845,청각,12845-02,청각,CONFIRMED_INTERNAL_BRANCH_CODE,동일 원본 코드의 서로 다른 식품 branch를 내부 식별자로 분리
