@@ -25,12 +25,13 @@ CREATE TABLE IF NOT EXISTS food_master.food (
     ),
     basis_code TEXT NOT NULL CHECK (btrim(basis_code) <> ''),
     basis_name TEXT NOT NULL CHECK (btrim(basis_name) <> ''),
+    source_identity_key TEXT NOT NULL CHECK (btrim(source_identity_key) <> ''),
     basis_source_id BIGINT NOT NULL
         REFERENCES food_master.food_source (food_source_id) ON DELETE RESTRICT,
     CONSTRAINT food_parent_must_differ_from_self
         CHECK (parent_food_id IS NULL OR parent_food_id <> food_id),
     CONSTRAINT food_basis_is_unique
-        UNIQUE (basis_source_id, basis_level, basis_code)
+        UNIQUE (basis_source_id, source_identity_key)
 );
 
 CREATE INDEX IF NOT EXISTS food_parent_food_id_idx
@@ -48,3 +49,5 @@ COMMENT ON COLUMN food_master.food.basis_level IS
     'Original hierarchy level selected as the Food identity: REPRESENTATIVE, MIDDLE, or SMALL.';
 COMMENT ON COLUMN food_master.food.basis_source_id IS
     'Dataset source used to create this Food; it is not an individual observation row.';
+COMMENT ON COLUMN food_master.food.source_identity_key IS
+    'Stable resolved source branch key. It distinguishes approved code collisions and normalized aliases.';

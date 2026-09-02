@@ -3,7 +3,10 @@ name = "kdt-2-ai-integrated-project-team5-ai"
 version = "0.1.0"
 description = "Team AI Project"
 requires-python = "==3.11.*"
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "pyarrow>=18.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -29,6 +32,7 @@ indent-style = "space"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [dependency-groups]
 dev = [
